@@ -8,7 +8,12 @@ import json
 import os
 import re
 from pathlib import Path
+from string import Template
 from typing import Dict, Optional, List
+
+# Locales below this completion threshold are served as English fallback
+# to avoid shipping half-translated UIs.
+PARTIAL_LOCALE_THRESHOLD = 0.80  # 80%
 
 
 class I18n:
@@ -105,7 +110,11 @@ class I18n:
         """
         if locale is None:
             locale = self.default_locale
-        
+
+        # Fall back to default locale for partial/incomplete translations
+        if locale != self.default_locale and self._is_partial_locale(locale):
+            locale = self.default_locale
+
         # Get translation from specified locale, fallback to default, then key
         translations = self._translations.get(locale, {})
         translation = translations.get(key)
@@ -117,14 +126,25 @@ class I18n:
         if translation is None:
             translation = key
         
-        # Perform variable substitution
+        # Safe variable substitution — no KeyError, no format-string injection
         if kwargs:
-            for var_name, var_value in kwargs.items():
-                pattern = r'\{' + re.escape(var_name) + r'\}'
-                translation = re.sub(pattern, str(var_value), translation)
-        
+            safe_kwargs = {k: str(v) for k, v in kwargs.items()}
+            try:
+                translation = Template(translation).safe_substitute(**safe_kwargs)
+            except Exception:
+                pass  # Return unsubstituted string rather than crash
+
         return translation
     
+    def _is_partial_locale(self, locale: str) -> bool:
+        """Return True if locale completion is below the threshold."""
+        en_keys = set(self._translations.get(self.default_locale, {}).keys())
+        if not en_keys:
+            return False
+        locale_keys = set(self._translations.get(locale, {}).keys())
+        completion = len(locale_keys & en_keys) / len(en_keys)
+        return completion < PARTIAL_LOCALE_THRESHOLD
+
     def detect_locale(self, text: str) -> Optional[str]:
         """
         Detect language from input text using keyword matching.
