@@ -1,5 +1,9 @@
 # ClawI18n - Internationalization Framework for OpenClaw
 
+> **Status: Production · Self-hosted** — Actively used in production by the author. Open-source and available for deployment.
+
+![Status](https://img.shields.io/badge/Status-Production%20Self--hosted-brightgreen.svg)
+
 Internationalization (i18n) infrastructure for OpenClaw. Adds multi-language support, locale detection, and language switching capabilities.
 
 ## Problem
